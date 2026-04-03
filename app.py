@@ -26,14 +26,20 @@ def load_model() -> Tuple[Any, float]:
         model.fit(x, y)
         return model, 0.86
 
+    model = None
+    acc = 0.86
     if os.path.exists("log_reg.pkl"):
-        model = joblib.load("log_reg.pkl")
-    else:
-        model, _ = build_fallback()
-    if os.path.exists("model_accuracy.pkl"):
-        acc = float(joblib.load("model_accuracy.pkl"))
-    else:
-        acc = 0.86
+        try:
+            model = joblib.load("log_reg.pkl")
+        except Exception:
+            model = None
+    if model is None:
+        model, acc = build_fallback()
+    elif os.path.exists("model_accuracy.pkl"):
+        try:
+            acc = float(joblib.load("model_accuracy.pkl"))
+        except Exception:
+            acc = 0.86
     return model, acc
 
 
@@ -150,6 +156,7 @@ elif menu == "📂 Batch CSV":
                 sns.histplot(proba, bins=30, kde=True, ax=ax, color="#38bdf8")
                 ax.set_xlabel("Fraud probability")
                 st.pyplot(fig)
+                plt.close(fig)
                 buf = out.to_csv(index=False)
                 st.download_button("Download results CSV", buf, "fraud_scores.csv", "text/csv")
             except Exception as e:
