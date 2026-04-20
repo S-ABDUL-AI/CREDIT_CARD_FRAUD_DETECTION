@@ -1,3 +1,4 @@
+import html
 import os
 from typing import Any, Tuple
 
@@ -10,14 +11,47 @@ import streamlit as st
 from sklearn.linear_model import LogisticRegression
 
 st.set_page_config(
-    page_title="Fraud detection",
+    page_title="Transaction risk screening",
     page_icon="💳",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
+
+_PRO_CSS = """
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+    html, body, [class*="css"] { font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif !important; }
+    .stApp { background: linear-gradient(165deg, #eef2f7 0%, #e8edf4 40%, #f8fafc 100%); }
+    [data-testid="stHeader"] { background: rgba(255,255,255,0.95) !important; border-bottom: 1px solid #e2e8f0; }
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        border-right: 1px solid #e2e8f0 !important;
+    }
+    h1 { color: #0f172a !important; font-weight: 700 !important; letter-spacing: -0.03em !important; }
+    h2, h3, h4, h5 { color: #1e293b !important; font-weight: 600 !important; }
+    div[data-testid="stMetricValue"] { color: #0f172a !important; font-weight: 700 !important; }
+    div[data-testid="stMetricLabel"] {
+        color: #64748b !important; font-weight: 600 !important;
+        text-transform: uppercase !important; font-size: 0.72rem !important; letter-spacing: 0.06em !important;
+    }
+    .ccd-hero {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 22px 24px;
+        margin-bottom: 1.35rem;
+        box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+    }
+    .ccd-hero h1 { margin: 0 !important; font-size: 1.65rem !important; }
+    .ccd-hero p { margin: 0.45rem 0 0 !important; color: #475569 !important; font-size: 1.02rem !important; line-height: 1.55 !important; }
+    .block-container { padding-top: 1.25rem !important; padding-bottom: 3rem !important; max-width: 1100px !important; }
+</style>
+"""
+st.markdown(_PRO_CSS, unsafe_allow_html=True)
 
 
 @st.cache_resource
-def load_model() -> Tuple[Any, float, str]:  # (model, accuracy_for_display, status)
+def load_model() -> Tuple[Any, float, str]:
     """Return (model, accuracy_display, status). status is artifact_ok | fallback_* for UI messaging."""
 
     def build_fallback() -> Tuple[Any, float]:
@@ -52,30 +86,54 @@ def load_model() -> Tuple[Any, float, str]:  # (model, accuracy_for_display, sta
 
 log_model, accuracy, _model_status = load_model()
 
-st.markdown(
-    """
-    <style>
-    .stApp { background: #0f172a; color: #e2e8f0; }
-    [data-testid="stSidebar"] { background: #020617; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+_NAV_OPTIONS = [
+    "Overview",
+    "Single transaction",
+    "Batch CSV",
+    "Model & metrics",
+]
+_NAV_INTERNAL = {
+    "Overview": "overview",
+    "Single transaction": "single",
+    "Batch CSV": "batch",
+    "Model & metrics": "model",
+}
 
-menu = st.sidebar.radio(
-    "Navigate",
-    ["🏠 Home", "🔮 Single transaction", "📂 Batch CSV", "📊 Model info"],
-)
-if _model_status != "artifact_ok":
-    st.sidebar.warning(
-        "Running a **built-in backup model** because the saved file could not be loaded "
-        "(missing file or **scikit-learn** version mismatch on this host). Scores are for **demo only**."
+with st.sidebar:
+    st.markdown(
+        "<div style='padding: 2px 0 14px;'>"
+        "<span style='font-size:0.72rem;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;'>"
+        "Workspace</span><br/>"
+        "<span style='font-size:1.2rem;font-weight:700;color:#0f172a;letter-spacing:-0.02em;'>Risk screening</span>"
+        "</div>",
+        unsafe_allow_html=True,
     )
-st.sidebar.caption(
-    "**Sherriff Abdul-Hamid** · "
-    "[This repo](https://github.com/S-ABDUL-AI/CREDIT_CARD_FRAUD_DETECTION) · "
-    "[LinkedIn](https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/)"
-)
+    nav_label = st.selectbox(
+        "Section",
+        _NAV_OPTIONS,
+        index=0,
+        label_visibility="collapsed",
+    )
+    menu = _NAV_INTERNAL[nav_label]
+
+    st.divider()
+    if _model_status != "artifact_ok":
+        st.warning(
+            "**Demo model in use** — saved weights did not load (missing file or **scikit-learn** mismatch). "
+            "Treat scores as **illustrative**."
+        )
+    st.caption(
+        "**Sherriff Abdul-Hamid**  \n"
+        "[Repository](https://github.com/S-ABDUL-AI/CREDIT_CARD_FRAUD_DETECTION) · "
+        "[LinkedIn](https://www.linkedin.com/in/abdul-hamid-sherriff-08583354/)"
+    )
+
+
+def hero(title: str, subtitle: str) -> None:
+    st.markdown(
+        f"<div class='ccd-hero'><h1>{html.escape(title)}</h1><p>{html.escape(subtitle)}</p></div>",
+        unsafe_allow_html=True,
+    )
 
 
 def encode_single(amount: float, time_of_day: str, transaction_type: str, location: str, device: str) -> np.ndarray:
@@ -108,7 +166,6 @@ def batch_feature_matrix(df: pd.DataFrame) -> np.ndarray:
     amt = df[lower["amount"]].astype(float)
     out = np.zeros((n, 24), dtype=float)
     out[:, 0] = amt.values / 1000.0
-    # map categoricals row-wise
     tm = {"morning": 0, "afternoon": 1, "evening": 2, "night": 3}
     tt = {"online": 0, "pos": 1, "atm": 2}
     lm = {"domestic": 0, "international": 1}
@@ -121,52 +178,85 @@ def batch_feature_matrix(df: pd.DataFrame) -> np.ndarray:
     return out
 
 
-if menu == "🏠 Home":
-    st.title("💳 Credit card fraud screening")
-    st.write(
-        "Prototype **risk helper**: manual fields map to **24** inputs the model expects (only the first five carry your labels); "
-        "batch mode accepts **24 numeric columns** or labeled columns **amount, time_of_day, transaction_type, location, device**."
+if menu == "overview":
+    hero(
+        "Transaction risk screening",
+        "Logistic-regression prototype for triage—not a substitute for issuer controls or policy.",
     )
-    with st.expander("Important — read once", expanded=False):
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("Reported accuracy", f"{accuracy:.1%}")
+    with m2:
+        st.metric("Model inputs", "24 features", help="Five form fields map to the first slots; batch CSV can supply all 24.")
+    with m3:
+        src = "Production artifact" if _model_status == "artifact_ok" else "On-host demo"
+        st.metric("Model source", src)
+
+    st.divider()
+    st.subheader("Capabilities")
+    st.markdown(
+        "- **Single transaction** — map business fields into the model layout and read a fraud probability.  \n"
+        "- **Batch CSV** — score rows from **24 numeric columns** or labeled **amount / time / channel / location / device**.  \n"
+        "- **Model & metrics** — saved accuracy plus confusion matrix and ROC plots when present in the repo."
+    )
+
+    with st.expander("Governance & limitations", expanded=False):
         st.markdown(
             """
-- This is **not** a licensed fraud engine; use it to **prioritise review**, not as the only decision.
-- If the sidebar shows a **backup model** warning, treat all scores as **illustrative** until `log_reg.pkl` loads on the server.
-- Single-transaction scores use **sparse** handcrafted features unless your CSV supplies all **24** numbers the trained model used.
+- **Not** a licensed fraud engine; use output to **prioritise human review** and queues.
+- If **Model source** reads *On-host demo*, scores are **illustrative** until `log_reg.pkl` loads on the server.
+- Manual scoring uses **partial** features unless training matches this encoding.
             """
         )
-    st.metric("Accuracy shown with the model", f"{accuracy:.2%}")
 
-elif menu == "🔮 Single transaction":
-    st.subheader("Score one transaction")
+elif menu == "single":
+    hero("Single transaction", "Enter one transaction. Results are indicative—tune thresholds on your own data.")
+
+    st.subheader("Transaction details")
     c1, c2 = st.columns(2)
     with c1:
+        st.markdown("**Amount & timing**")
         amount = st.number_input("Amount (USD)", min_value=0.0, value=120.0, step=1.0)
         time_of_day = st.selectbox("Time of day", ["Morning", "Afternoon", "Evening", "Night"])
         transaction_type = st.selectbox("Channel", ["Online", "POS", "ATM"])
     with c2:
+        st.markdown("**Location & device**")
         location = st.selectbox("Location", ["Domestic", "International"])
         device = st.selectbox("Device", ["Mobile", "Desktop", "ATM", "POS Terminal"])
-    if st.button("Score", type="primary"):
+
+    st.divider()
+    if st.button("Run screening", type="primary", use_container_width=True):
         X = encode_single(amount, time_of_day, transaction_type, location, device)
         pred = int(log_model.predict(X)[0])
         proba = float(log_model.predict_proba(X)[0][1])
-        if pred == 1:
-            st.error(f"**Elevated risk** — fraud probability **{proba:.1%}**")
-        else:
-            st.success(f"**Lower risk** — fraud probability **{proba:.1%}**")
-        st.caption("Thresholds are illustrative; calibrate on your own data.")
 
-elif menu == "📂 Batch CSV":
-    st.subheader("Batch scoring")
-    up = st.file_uploader("CSV", type=["csv"])
+        st.subheader("Outcome")
+        o1, o2 = st.columns([1, 2])
+        with o1:
+            st.metric("Fraud probability", f"{proba:.1%}")
+        with o2:
+            st.progress(float(min(max(proba, 0.0), 1.0)))
+            if pred == 1:
+                st.error("**Elevated risk** — route to review per your operating policy.")
+            else:
+                st.success("**Lower risk** — routine path unless other controls flag the case.")
+        st.caption("Thresholds are not calibrated to your portfolio.")
+
+elif menu == "batch":
+    hero("Batch CSV", "Upload a file, preview rows, then score. Demo limit: 500,000 rows per run.")
+
+    st.subheader("1 · Upload")
+    up = st.file_uploader("CSV file", type=["csv"])
     if up:
         data = pd.read_csv(up)
-        st.dataframe(data.head(15), use_container_width=True)
-        if st.button("Run batch", type="primary"):
+        st.caption(f"{len(data):,} rows · {data.shape[1]} columns")
+        st.dataframe(data.head(12), use_container_width=True, height=260)
+
+        st.subheader("2 · Score")
+        if st.button("Run batch screening", type="primary", use_container_width=True):
             try:
                 if len(data) > 500_000:
-                    st.error("This demo caps batch size at **500,000** rows. Trim the file and try again.")
+                    st.error("This demo caps batch size at **500,000** rows.")
                 else:
                     X = batch_feature_matrix(data)
                     preds = log_model.predict(X)
@@ -174,33 +264,57 @@ elif menu == "📂 Batch CSV":
                     out = data.copy()
                     out["fraud_flag"] = preds
                     out["fraud_proba"] = proba
-                    st.success(f"Scored **{len(out)}** rows.")
-                    st.dataframe(out.head(25), use_container_width=True)
-                    fig, ax = plt.subplots(figsize=(6, 3))
-                    sns.histplot(proba, bins=30, kde=True, ax=ax, color="#38bdf8")
-                    ax.set_xlabel("Fraud probability")
+                    st.success(f"Scored **{len(out):,}** rows.")
+                    st.dataframe(out.head(20), use_container_width=True, height=300)
+
+                    sns.set_theme(style="whitegrid")
+                    fig, ax = plt.subplots(figsize=(7, 3.2))
+                    sns.histplot(proba, bins=28, kde=True, ax=ax, color="#2563eb", edgecolor="white")
+                    ax.set_xlabel("Fraud probability", fontsize=11)
+                    ax.set_ylabel("Count", fontsize=11)
+                    ax.set_title("Score distribution", fontsize=12, fontweight="bold", pad=12)
+                    fig.patch.set_facecolor("#ffffff")
                     st.pyplot(fig, use_container_width=True)
                     plt.close(fig)
+
                     buf = out.to_csv(index=False)
-                    st.download_button("Download results CSV", buf, "fraud_scores.csv", "text/csv")
+                    st.download_button(
+                        "Download scored CSV",
+                        buf,
+                        "fraud_scores.csv",
+                        "text/csv",
+                        use_container_width=True,
+                    )
             except Exception as e:
                 st.error(str(e))
+    else:
+        st.info("Upload a **.csv** above. Column formats are described on **Overview**.")
 
 else:
-    st.subheader("Model info")
-    st.write(f"Accuracy (saved metric): **{accuracy:.2%}**")
+    hero("Model & metrics", "Documentation of the deployed scorer and static evaluation plots.")
+
+    a1, a2 = st.columns(2)
+    with a1:
+        st.metric("Saved accuracy", f"{accuracy:.2%}")
+    with a2:
+        st.metric("Algorithm", "Logistic regression", help="class_weight='balanced' for skewed labels.")
+
     st.markdown(
-        "- **Algorithm:** logistic regression with `class_weight='balanced'` (fallback trained if `.pkl` missing).\n"
-        "- **Use:** prioritise alerts and queues — not a sole decision system."
+        "**Intended use:** queue prioritisation and analyst triage—not the sole basis for declines or holds. "
+        "A sidebar warning means a fallback demo model may be active."
     )
-    c1, c2 = st.columns(2)
-    with c1:
+    st.divider()
+
+    ic1, ic2 = st.columns(2, gap="medium")
+    with ic1:
+        st.subheader("Confusion matrix")
         if os.path.exists("confusion_matrix.png"):
-            st.image("confusion_matrix.png", caption="Confusion matrix")
+            st.image("confusion_matrix.png", use_container_width=True)
         else:
-            st.info("Add `confusion_matrix.png` to the repo for a diagram.")
-    with c2:
+            st.info("Add `confusion_matrix.png` at repo root to display.")
+    with ic2:
+        st.subheader("ROC curve")
         if os.path.exists("roc_curve.png"):
-            st.image("roc_curve.png", caption="ROC curve")
+            st.image("roc_curve.png", use_container_width=True)
         else:
-            st.info("Add `roc_curve.png` to the repo for a diagram.")
+            st.info("Add `roc_curve.png` at repo root to display.")
