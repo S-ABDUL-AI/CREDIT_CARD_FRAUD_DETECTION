@@ -46,15 +46,24 @@ _PRO_CSS = """
     .ccd-hero p { margin: 0.45rem 0 0 !important; color: #475569 !important; font-size: 1.02rem !important; line-height: 1.55 !important; }
     .block-container { padding-top: 1.25rem !important; padding-bottom: 3rem !important; max-width: 1100px !important; }
     [data-testid="stSidebar"] .ccd-howto-line {
-        font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.01em;
+        font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0 0 10px 0; letter-spacing: -0.01em;
     }
-    [data-testid="stSidebar"] .ccd-side-pia {
-        font-size: 0.8rem; color: #475569; line-height: 1.5; margin-bottom: 10px; padding: 10px 11px;
-        background: #f1f5f9; border-radius: 10px; border-left: 3px solid #2563eb;
+    [data-testid="stSidebar"] .ccd-howto-body {
+        font-size: 0.8rem; color: #475569; line-height: 1.55; margin: 0 0 14px 0;
     }
-    [data-testid="stSidebar"] .ccd-side-pia strong {
-        display: block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-        color: #64748b; margin-bottom: 5px;
+    .ccd-pia-row-title {
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #64748b;
+        margin: 0 0 10px 0;
+    }
+    .ccd-pia-card {
+        font-size: 0.84rem; color: #475569; line-height: 1.5; margin-bottom: 0; padding: 12px 14px;
+        background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
+        border-left: 3px solid #2563eb; box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+        height: 100%;
+    }
+    .ccd-pia-card strong {
+        display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+        color: #64748b; margin-bottom: 6px;
     }
 </style>
 """
@@ -116,14 +125,9 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown(
-        """
-<div class="ccd-side-pia"><strong>Problem statement</strong>
-Issuers see very high transaction volume; teams need a <b>fast, consistent signal</b> to decide what to review first—not a final fraud verdict.</div>
-<div class="ccd-side-pia"><strong>Implication</strong>
-Outputs are <b>probabilities</b> from a logistic model. They support <b>triage and queues</b> only, and are weaker when the sidebar shows a <b>demo model</b> warning.</div>
-<div class="ccd-side-pia"><strong>Action</strong>
-Pick a <b>section</b> below → open <b>Single transaction</b> or <b>Batch CSV</b> on the main page → click <b>Run screening</b>. Use <b>Model &amp; metrics</b> for accuracy and plots.</div>
-        """,
+        "<div class='ccd-howto-body'>"
+        "Choose a <b>Section</b> below. On <b>Single transaction</b> or <b>Batch CSV</b>, fill the form or upload a CSV, then use the primary "
+        "<b>Run</b> button on the main page. Open <b>Overview</b> or <b>Model &amp; metrics</b> for a quick tour and saved evaluation plots.</div>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -161,6 +165,34 @@ def hero(title: str, subtitle: str) -> None:
         f"<div class='ccd-hero'><h1>{html.escape(title)}</h1><p>{html.escape(subtitle)}</p></div>",
         unsafe_allow_html=True,
     )
+
+
+def render_recommendation_strip() -> None:
+    """Insight / implication / action — main pane only (separate from sidebar how-to)."""
+    st.markdown("<p class='ccd-pia-row-title'>Recommendation</p>", unsafe_allow_html=True)
+    r1, r2, r3 = st.columns(3, gap="medium")
+    with r1:
+        st.markdown(
+            "<div class='ccd-pia-card'><strong>Insight</strong>"
+            "Issuers see very high transaction volume; teams need a <b>fast, consistent signal</b> to prioritise what to review first—"
+            "not a substitute for a full fraud investigation.</div>",
+            unsafe_allow_html=True,
+        )
+    with r2:
+        st.markdown(
+            "<div class='ccd-pia-card'><strong>Implication</strong>"
+            "Scores are <b>probabilities</b> from logistic regression. They support <b>triage and queue design</b> only. "
+            "If the sidebar shows a <b>demo model</b> warning, treat outputs as <b>illustrative</b>.</div>",
+            unsafe_allow_html=True,
+        )
+    with r3:
+        st.markdown(
+            "<div class='ccd-pia-card'><strong>Action</strong>"
+            "Define thresholds and escalation paths in <b>your</b> operating policy; use scores to <b>route cases</b> for review—"
+            "not as the sole basis for declines or account holds.</div>",
+            unsafe_allow_html=True,
+        )
+    st.divider()
 
 
 def encode_single(amount: float, time_of_day: str, transaction_type: str, location: str, device: str) -> np.ndarray:
@@ -204,6 +236,8 @@ def batch_feature_matrix(df: pd.DataFrame) -> np.ndarray:
         out[i, 4] = dm.get(str(df[lower["device"]].iloc[i]).lower().strip(), 0)
     return out
 
+
+render_recommendation_strip()
 
 if menu == "overview":
     hero(
