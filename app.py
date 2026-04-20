@@ -45,6 +45,17 @@ _PRO_CSS = """
     .ccd-hero h1 { margin: 0 !important; font-size: 1.65rem !important; }
     .ccd-hero p { margin: 0.45rem 0 0 !important; color: #475569 !important; font-size: 1.02rem !important; line-height: 1.55 !important; }
     .block-container { padding-top: 1.25rem !important; padding-bottom: 3rem !important; max-width: 1100px !important; }
+    [data-testid="stSidebar"] .ccd-howto-line {
+        font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.01em;
+    }
+    [data-testid="stSidebar"] .ccd-side-pia {
+        font-size: 0.8rem; color: #475569; line-height: 1.5; margin-bottom: 10px; padding: 10px 11px;
+        background: #f1f5f9; border-radius: 10px; border-left: 3px solid #2563eb;
+    }
+    [data-testid="stSidebar"] .ccd-side-pia strong {
+        display: block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+        color: #64748b; margin-bottom: 5px;
+    }
 </style>
 """
 st.markdown(_PRO_CSS, unsafe_allow_html=True)
@@ -101,7 +112,23 @@ _NAV_INTERNAL = {
 
 with st.sidebar:
     st.markdown(
-        "<div style='padding: 2px 0 14px;'>"
+        "<p class='ccd-howto-line'>How to use this app</p>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+<div class="ccd-side-pia"><strong>Problem statement</strong>
+Issuers see very high transaction volume; teams need a <b>fast, consistent signal</b> to decide what to review first—not a final fraud verdict.</div>
+<div class="ccd-side-pia"><strong>Implication</strong>
+Outputs are <b>probabilities</b> from a logistic model. They support <b>triage and queues</b> only, and are weaker when the sidebar shows a <b>demo model</b> warning.</div>
+<div class="ccd-side-pia"><strong>Action</strong>
+Pick a <b>section</b> below → open <b>Single transaction</b> or <b>Batch CSV</b> on the main page → click <b>Run screening</b>. Use <b>Model &amp; metrics</b> for accuracy and plots.</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.divider()
+    st.markdown(
+        "<div style='padding: 2px 0 10px;'>"
         "<span style='font-size:0.72rem;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;'>"
         "Workspace</span><br/>"
         "<span style='font-size:1.2rem;font-weight:700;color:#0f172a;letter-spacing:-0.02em;'>Risk screening</span>"
