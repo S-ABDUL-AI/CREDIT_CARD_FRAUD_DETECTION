@@ -328,15 +328,78 @@ elif menu == "batch":
                     st.success(f"Scored **{len(out):,}** rows.")
                     st.dataframe(out.head(20), use_container_width=True, height=300)
 
+                    proba_arr = np.asarray(proba, dtype=float)
+                    n_rows = int(len(proba_arr))
+                    flagged = int((preds == 1).sum())
+                    pct_flagged = 100.0 * flagged / n_rows if n_rows else 0.0
+                    pct_ge_half = 100.0 * float(np.mean(proba_arr >= 0.5)) if n_rows else 0.0
+                    med = float(np.median(proba_arr)) if n_rows else 0.0
+
+                    st.subheader("Score summary for this batch")
+                    sm1, sm2, sm3, sm4 = st.columns(4)
+                    with sm1:
+                        st.metric("Mean fraud probability", f"{float(proba_arr.mean()):.1%}")
+                    with sm2:
+                        st.metric("Median (P50)", f"{med:.1%}")
+                    with sm3:
+                        st.metric(
+                            "Share ≥ 0.5",
+                            f"{pct_ge_half:.1f}%",
+                            help="Fraction of rows at or above sklearn's usual 0/1 cutoff for logistic regression.",
+                        )
+                    with sm4:
+                        st.metric("Rows flagged pred=1", f"{flagged:,}", delta=f"{pct_flagged:.1f}% of batch", delta_color="off")
+
                     sns.set_theme(style="whitegrid")
-                    fig, ax = plt.subplots(figsize=(7, 3.2))
-                    sns.histplot(proba, bins=28, kde=True, ax=ax, color="#2563eb", edgecolor="white")
-                    ax.set_xlabel("Fraud probability", fontsize=11)
-                    ax.set_ylabel("Count", fontsize=11)
-                    ax.set_title("Score distribution", fontsize=12, fontweight="bold", pad=12)
+                    n_bins = int(min(40, max(12, round(np.sqrt(n_rows))))) if n_rows else 12
+                    fig, (axh, axb) = plt.subplots(
+                        1,
+                        2,
+                        figsize=(10.8, 3.85),
+                        gridspec_kw={"width_ratios": [1.25, 1.0], "wspace": 0.28},
+                    )
+                    sns.histplot(
+                        proba_arr,
+                        bins=n_bins,
+                        kde=True,
+                        ax=axh,
+                        color="#2563eb",
+                        edgecolor="white",
+                        linewidth=0.35,
+                        stat="count",
+                    )
+                    axh.axvline(0.5, color="#dc2626", linestyle="--", linewidth=2.2, label="Default cutoff (0.5)")
+                    if n_rows:
+                        axh.axvline(med, color="#64748b", linestyle=":", linewidth=1.8, label="Median score")
+                    axh.set_xlim(0.0, 1.0)
+                    axh.set_xlabel("Fraud probability (model output)", fontsize=10)
+                    axh.set_ylabel("Number of transactions", fontsize=10)
+                    axh.set_title("Where does this file pile up?", fontsize=11.5, fontweight="bold", pad=10, color="#0f172a")
+                    axh.legend(loc="upper right", fontsize=8.5, framealpha=0.95)
+
+                    band_edges = [0.0, 0.25, 0.5, 0.75, 1.0]
+                    hist_b, _ = np.histogram(proba_arr, bins=band_edges)
+                    pct_band = 100.0 * hist_b / n_rows if n_rows else hist_b.astype(float)
+                    band_labels = ["Routine\n0–25%", "Watch\n25–50%", "Elevated\n50–75%", "Priority\n75–100%"]
+                    colors_b = ["#16a34a", "#ca8a04", "#ea580c", "#b91c1c"]
+                    y_pos = np.arange(len(band_labels))
+                    axb.barh(y_pos, pct_band, color=colors_b, edgecolor="white", linewidth=0.6, height=0.72)
+                    axb.set_yticks(y_pos)
+                    axb.set_yticklabels(band_labels, fontsize=9)
+                    axb.set_xlabel("Percent of this batch", fontsize=10)
+                    axb.set_title("How much needs attention?", fontsize=11.5, fontweight="bold", pad=10, color="#0f172a")
+                    xmax = float(max(12.0, pct_band.max() * 1.2, 5.0)) if n_rows else 100.0
+                    axb.set_xlim(0.0, xmax)
+                    for i, v in enumerate(pct_band):
+                        axb.text(min(v + xmax * 0.02, xmax * 0.97), i, f"{v:.1f}%", va="center", fontsize=9.5, color="#0f172a")
                     fig.patch.set_facecolor("#ffffff")
+                    fig.tight_layout()
                     st.pyplot(fig, use_container_width=True)
                     plt.close(fig)
+                    st.caption(
+                        "Left: distribution of predicted fraud probability; red dashed line is the model's usual yes/no boundary. "
+                        "Right: same scores grouped into coarse review bands so you can see triage load at a glance."
+                    )
 
                     buf = out.to_csv(index=False)
                     st.download_button(
@@ -371,11 +434,18 @@ else:
         st.subheader("Confusion matrix")
         if os.path.exists("confusion_matrix.png"):
             st.image("confusion_matrix.png", use_container_width=True)
+            st.caption(
+                "Read diagonals as **correct** calls; off-diagonals are **false alarms** (top-right) vs **missed fraud** (bottom-left). "
+                "Skew toward one corner tells you whether the model is conservative or aggressive at the threshold used when this plot was exported."
+            )
         else:
             st.info("Add `confusion_matrix.png` at repo root to display.")
     with ic2:
         st.subheader("ROC curve")
         if os.path.exists("roc_curve.png"):
             st.image("roc_curve.png", use_container_width=True)
+            st.caption(
+                "The curve traces **true positive rate vs false positive rate** as the cutoff moves. **Higher and closer to the top-left** means better separability on the evaluation set; the diagonal is random guessing."
+            )
         else:
             st.info("Add `roc_curve.png` at repo root to display.")
